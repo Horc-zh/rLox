@@ -2,21 +2,30 @@ mod ast_printer;
 mod expr;
 mod interpreter;
 mod parser;
+mod runtime_error;
 mod scanner;
 mod token;
 mod token_type;
+mod value;
 
 use expr::Expr;
+use interpreter::Interpreter;
 use parser::Parser;
 use scanner::Scanner;
 use token::Token;
 use token_type::TokenType;
 
 struct Lox {
+    interpreter: Interpreter,
     had_error: bool,
+    had_runtime_error: bool,
 }
 
-static mut LOX: Lox = Lox { had_error: false };
+static mut LOX: Lox = Lox {
+    interpreter: Interpreter {},
+    had_error: false,
+    had_runtime_error: false,
+};
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
@@ -37,6 +46,9 @@ impl Lox {
         if unsafe { LOX.had_error } {
             std::process::exit(65);
         }
+        if unsafe { LOX.had_runtime_error } {
+            std::process::exit(70);
+        }
         Ok(())
     }
 
@@ -48,29 +60,38 @@ impl Lox {
             Self::run(line);
             unsafe {
                 LOX.had_error = false;
+                LOX.had_runtime_error = false;
             }
         }
     }
 
     pub fn run(source: String) {
-        let mut scanner = Scanner::new(source);
+        let scanner = Scanner::new(source);
         let tokens: Vec<Token> = scanner.scan_tokens();
         match Parser::new(tokens).parse() {
-            Err(parseerror) => {
-                parseerror.error();
+            Err(error) => {
+                error.error();
 
                 if unsafe { LOX.had_error } {
                     return;
                 }
             }
             Ok(expr) => {
-                println!("{}", ast_printer::ExprVisitor.print(&expr));
+                // println!("ast_printer : {}", ast_printer::ExprVisitor.print(&expr));
+
+                match Interpreter::evaluate(expr) {
+                    Ok(value) => println!("value : {value}"),
+                    Err(error) => {
+                        error.error();
+
+                        if unsafe { LOX.had_error } {
+                            return;
+                        }
+                    }
+                }
             }
         }
-
-        if unsafe { LOX.had_error } {
-            return;
-        }
+        //TODO: too many {{{{}}}}
     }
 
     pub fn error_with_line(line: i32, message: &str) {

@@ -16,18 +16,6 @@ impl Parser {
         Parser { tokens, current: 0 }
     }
 
-    // pub fn parse(&mut self) -> Vec<Expr> {
-    //     let mut exprs = Vec::new();
-    //     while !self.is_at_end() {
-    //         if let Ok(expr) = self.expression() {
-    //             exprs.push(expr);
-    //         } else {
-    //             panic!("parse error")
-    //         }
-    //     }
-    //     exprs
-    // }
-
     pub fn parse(&mut self) -> Result<Expr, ParseError> {
         self.expression()
     }
