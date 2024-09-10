@@ -7,7 +7,7 @@ pub trait Visitor<R> {
     fn visit_unary(&self, operator: &Token, right: &Expr) -> R;
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Expr {
     Binary {
         left: Box<Expr>,
@@ -24,6 +24,13 @@ pub enum Expr {
         operator: Token,
         right: Box<Expr>,
     },
+    Variable {
+        name: Token,
+    },
+    Assign {
+        name: Token,
+        value: Box<Expr>,
+    },
     //TODO: add support for comma
 }
 
@@ -38,6 +45,7 @@ impl Expr {
             Expr::Grouping { expression } => visitor.visit_grouping(expression),
             Expr::Literal { value } => visitor.visit_literal(value),
             Expr::Unary { operator, right } => visitor.visit_unary(operator, right),
+            _ => todo!(),
         }
     }
 }

@@ -1,13 +1,67 @@
 use crate::{
-    expr::Expr, runtime_error::RuntimeError, token::Token, token_type::TokenType, value::Value,
+    environment::Environment, expr::Expr, runtime_error::RuntimeError, stmt::Stmt, token::Token,
+    token_type::TokenType, value::Value, Lox,
 };
 
-pub struct Interpreter {}
+pub struct Interpreter {
+    environment: Environment,
+}
 
 impl Interpreter {
     pub fn new() -> Self {
-        //TODO: should I put env into this struct?
-        Interpreter {}
+        Interpreter {
+            environment: Environment::default(),
+        }
+    }
+
+    pub fn interpret(&mut self, statements: Vec<Stmt>) {
+        statements.into_iter().for_each(|stmt| {
+            if let Err(e) = self.execute(stmt) {
+                Lox::runtime_error(e);
+                return;
+            }
+        })
+    }
+
+    fn execute(&mut self, stmt: Stmt) -> Result<Value, RuntimeError> {
+        match stmt {
+            Stmt::Print { expression } => {
+                let value = self.evaluate(*expression)?;
+                println!("{}", value);
+                Ok(Value::Nil)
+            }
+            Stmt::Expression { expression } => {
+                todo!()
+            }
+            Stmt::Var { name, initializer } => {
+                let mut value = Value::Nil;
+                if let Some(initializer) = initializer {
+                    value = self.evaluate(*initializer)?;
+                }
+                self.environment.define(name.lexeme, value);
+                Ok(Value::Nil)
+            }
+            Stmt::Block { statements } => self.execute_block(
+                statements,
+                Environment::new_enclosing(self.environment.clone()),
+            ),
+        }
+    }
+
+    fn execute_block(
+        &mut self,
+        statements: Vec<Stmt>,
+        environment: Environment,
+    ) -> Result<Value, RuntimeError> {
+        let previous = std::mem::replace(&mut self.environment, environment);
+        for stmt in statements {
+            if let Err(e) = self.execute(stmt) {
+                self.environment = previous;
+                return Err(e);
+            }
+        }
+        self.environment = previous;
+        Ok(Value::Nil)
     }
 
     fn check_number_operands(
@@ -24,26 +78,27 @@ impl Interpreter {
         })
     }
 
-    pub fn evaluate(expr: Expr) -> Result<Value, RuntimeError> {
+    pub fn evaluate(&mut self, expr: Expr) -> Result<Value, RuntimeError> {
         Ok(match expr {
             Expr::Binary {
                 left,
                 operator,
                 right,
             } => {
-                let left = Interpreter::evaluate(*left)?;
-                let right = Interpreter::evaluate(*right)?;
+                let left = self.evaluate(*left)?;
+                let right = self.evaluate(*right)?;
 
                 match operator.token_type {
-                    TokenType::PLUS => {
-                        if left != right {
+                    TokenType::PLUS => match (&left, &right) {
+                        (Value::Number(_), Value::Number(_))
+                        | (Value::String(_), Value::String(_)) => left + right,
+                        _ => {
                             return Err(RuntimeError {
                                 token: operator,
                                 message: format!("Operands must be two numbers or two strings."),
-                            });
+                            })
                         }
-                        left + right
-                    }
+                    },
                     TokenType::MINUS => {
                         Interpreter::check_number_operands(&operator, &left, &right)?;
                         left - right
@@ -78,7 +133,7 @@ impl Interpreter {
                     _ => unreachable!(),
                 }
             }
-            Expr::Grouping { expression } => Interpreter::evaluate(*expression)?,
+            Expr::Grouping { expression } => self.evaluate(*expression)?,
             Expr::Literal { value } => match value {
                 crate::token::Literal::String(s) => Value::String(s),
                 crate::token::Literal::Number(n) => Value::Number(n),
@@ -86,12 +141,18 @@ impl Interpreter {
                 crate::token::Literal::Nil => Value::Nil,
             },
             Expr::Unary { operator, right } => {
-                let right_value = Interpreter::evaluate(*right)?;
+                let right_value = self.evaluate(*right)?;
                 match operator.token_type {
                     TokenType::MINUS => -right_value,
                     TokenType::BANG => !right_value,
                     _ => unreachable!(),
                 }
+            }
+            Expr::Variable { name } => self.environment.get(name)?,
+            Expr::Assign { name, value } => {
+                let value = self.evaluate(*value)?;
+                self.environment.assign(name, value.clone())?;
+                value
             }
         })
     }
@@ -105,12 +166,19 @@ mod test {
     use crate::Scanner;
 
     fn get_value(s: &str) -> Value {
-        Interpreter::evaluate(
-            Parser::new(Scanner::new(s.to_string()).scan_tokens())
-                .parse()
-                .unwrap(),
-        )
-        .unwrap()
+        let mut interpreter = Interpreter::new();
+        interpreter
+            .evaluate(
+                Parser::new(Scanner::new(s.to_string()).scan_tokens())
+                    .expression()
+                    .unwrap(),
+            )
+            .unwrap()
+    }
+
+    #[test]
+    fn test_eval_variable() {
+        assert_eq!(get_value("var a = 1;\nprint a;"), Value::Number(1.0));
     }
 
     #[test]

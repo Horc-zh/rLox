@@ -1,15 +1,19 @@
 mod ast_printer;
+mod environment;
 mod expr;
 mod interpreter;
 mod parser;
 mod runtime_error;
 mod scanner;
+mod stmt;
 mod token;
 mod token_type;
 mod value;
 
 use expr::Expr;
 use interpreter::Interpreter;
+use lazy_static::lazy_static;
+use once_cell::sync::Lazy;
 use parser::Parser;
 use scanner::Scanner;
 use token::Token;
@@ -21,11 +25,7 @@ struct Lox {
     had_runtime_error: bool,
 }
 
-static mut LOX: Lox = Lox {
-    interpreter: Interpreter {},
-    had_error: false,
-    had_runtime_error: false,
-};
+static mut LOX: Lazy<Lox> = Lazy::new(Lox::new);
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
@@ -40,6 +40,14 @@ fn main() {
 }
 
 impl Lox {
+    pub(crate) fn new() -> Self {
+        Lox {
+            had_error: false,
+            had_runtime_error: false,
+            interpreter: Interpreter::new(),
+        }
+    }
+
     pub fn run_file(path: String) -> Result<(), std::io::Error> {
         let source = std::fs::read_to_string(path)?;
         Self::run(source);
@@ -67,31 +75,21 @@ impl Lox {
 
     pub fn run(source: String) {
         let scanner = Scanner::new(source);
-        let tokens: Vec<Token> = scanner.scan_tokens();
-        match Parser::new(tokens).parse() {
-            Err(error) => {
-                error.error();
-
-                if unsafe { LOX.had_error } {
-                    return;
-                }
-            }
-            Ok(expr) => {
-                // println!("ast_printer : {}", ast_printer::ExprVisitor.print(&expr));
-
-                match Interpreter::evaluate(expr) {
-                    Ok(value) => println!("value : {value}"),
-                    Err(error) => {
-                        error.error();
-
-                        if unsafe { LOX.had_error } {
-                            return;
-                        }
-                    }
-                }
-            }
+        let tokens = scanner.scan_tokens();
+        let mut parser = parser::Parser::new(tokens);
+        let statements = parser.parse();
+        if unsafe { LOX.had_error } {
+            return;
         }
-        //TODO: too many {{{{}}}}
+
+        unsafe { LOX.interpreter.interpret(statements) }
+    }
+
+    pub(crate) fn runtime_error(error: runtime_error::RuntimeError) {
+        eprintln!("{}\n[line {}]", error.message, error.token.line);
+        unsafe {
+            LOX.had_runtime_error = true;
+        }
     }
 
     pub fn error_with_line(line: i32, message: &str) {
