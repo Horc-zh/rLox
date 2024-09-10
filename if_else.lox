@@ -1,0 +1,6 @@
+if (true) print "if";
+else print "else";
+
+// if (var a = true) print "if";
+// else print "else";
+// some magic outcome will occur

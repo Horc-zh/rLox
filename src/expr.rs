@@ -31,7 +31,11 @@ pub enum Expr {
         name: Token,
         value: Box<Expr>,
     },
-    //TODO: add support for comma
+    Logical {
+        left: Box<Expr>,
+        operator: Token,
+        right: Box<Expr>,
+    }, //TODO: add support for comma
 }
 
 impl Expr {

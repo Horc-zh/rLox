@@ -45,6 +45,27 @@ impl Interpreter {
                 statements,
                 Environment::new_enclosing(self.environment.clone()),
             ),
+            Stmt::If {
+                condition,
+                then_branch,
+                else_branch,
+            } => {
+                let value = self.evaluate(*condition)?;
+                match value {
+                    Value::Boolean(bool) => {
+                        if bool {
+                            self.execute(*then_branch)?;
+                        } else {
+                            if let Some(else_stmt) = else_branch {
+                                self.execute(*else_stmt)?;
+                            }
+                        }
+                    }
+                    _ => unreachable!(), //TODO: add the exception handler
+                }
+                Ok(Value::Nil)
+            }
+            _ => todo!(),
         }
     }
 
@@ -154,6 +175,25 @@ impl Interpreter {
                 self.environment.assign(name, value.clone())?;
                 value
             }
+            Expr::Logical {
+                left,
+                operator,
+                right,
+            } => {
+                let left = self.evaluate(*left)?;
+                if operator.token_type == TokenType::OR {
+                    if left.is_true() {
+                        return Ok(left);
+                    } else {
+                        if !left.is_true() {
+                            return Ok(left);
+                        }
+                    }
+                }
+                self.evaluate(*right)?
+            }
+
+            _ => todo!(),
         })
     }
 }

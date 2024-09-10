@@ -8,7 +8,15 @@ pub enum Value {
     Nil,
 }
 
-impl Value {}
+impl Value {
+    pub fn is_true(&self) -> bool {
+        if let &Value::Boolean(b) = self {
+            b
+        } else {
+            false
+        }
+    }
+}
 
 impl Display for Value {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

@@ -5,8 +5,6 @@ use crate::token_type::TokenType::*;
 use crate::Lox;
 use lazy_static::lazy_static;
 use std::collections::HashMap;
-use std::iter::Map;
-use std::sync::OnceLock;
 
 lazy_static! {
     static ref KEYWORDS: HashMap<String, TokenType> = {

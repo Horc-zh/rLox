@@ -45,6 +45,9 @@ impl Parser {
     }
 
     fn statement(&mut self) -> Result<Stmt, ParseError> {
+        if self.match_token(&[IF]) {
+            return self.if_statement();
+        }
         if self.match_token(&[PRINT]) {
             return self.print_statement();
         }
@@ -54,6 +57,23 @@ impl Parser {
             });
         }
         self.expression_statement()
+    }
+
+    fn if_statement(&mut self) -> Result<Stmt, ParseError> {
+        self.consume(LEFT_PAREN, "Expect '(' after 'if'.")?;
+        let condition = self.expression()?;
+        self.consume(RIGHT_PAREN, "Expect '(' after if condition.")?;
+
+        let then_branch = self.statement()?;
+        let mut else_branch = None;
+        if self.match_token(&[ELSE]) {
+            else_branch = Some(Box::new(self.statement()?));
+        }
+        Ok(Stmt::If {
+            condition: Box::new(condition),
+            then_branch: Box::new(then_branch),
+            else_branch,
+        })
     }
 
     fn block(&mut self) -> Result<Vec<Stmt>, ParseError> {
@@ -87,7 +107,7 @@ impl Parser {
     }
 
     fn assignment(&mut self) -> Result<Expr, ParseError> {
-        let expr = self.equality()?;
+        let expr = self.or()?;
 
         if (self.match_token(&[EQUAL])) {
             let equals = self.previous();
@@ -103,6 +123,37 @@ impl Parser {
                 token: equals,
                 message: "Invaild assignment target.",
             });
+        }
+        Ok(expr)
+    }
+
+    fn or(&mut self) -> Result<Expr, ParseError> {
+        let mut expr = self.and()?;
+
+        while self.match_token(&[OR]) {
+            let operator = self.previous();
+            let right = self.and()?;
+            expr = Expr::Logical {
+                left: Box::new(expr),
+                operator,
+                right: Box::new(right),
+            };
+        }
+        Ok(expr)
+    }
+
+    fn and(&mut self) -> Result<Expr, ParseError> {
+        let mut expr = self.equality()?;
+
+        while self.match_token(&[AND]) {
+            let operator = self.previous();
+            let right = self.equality()?;
+
+            expr = Expr::Logical {
+                left: Box::new(expr),
+                operator,
+                right: Box::new(right),
+            };
         }
         Ok(expr)
     }
