@@ -1,3 +1,4 @@
+use crate::loxcallable::LoxCallable;
 use std::fmt::Display;
 
 #[derive(Debug, PartialEq, PartialOrd, Clone)]
@@ -18,6 +19,20 @@ impl Value {
     }
 }
 
+impl LoxCallable for Value {
+    fn call(
+        &self,
+        interpreter: &mut crate::interpreter::Interpreter,
+        arguments: Vec<Value>,
+    ) -> Value {
+        todo!()
+    }
+
+    fn arity(&self) -> usize {
+        todo!()
+    }
+    // add code here
+}
 impl Display for Value {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {

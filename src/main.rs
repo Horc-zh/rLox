@@ -2,6 +2,7 @@ mod ast_printer;
 mod environment;
 mod expr;
 mod interpreter;
+mod loxcallable;
 mod parser;
 mod runtime_error;
 mod scanner;

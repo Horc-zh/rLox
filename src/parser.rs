@@ -1,11 +1,12 @@
-use std::vec;
+use std::any::Any;
+use std::{string, vec};
 
 use crate::expr::Expr;
 use crate::stmt::Stmt;
 use crate::token::{Literal, Token};
 use crate::token_type::TokenType;
 use crate::token_type::TokenType::*;
-use crate::{Lox, LOX};
+use crate::Lox;
 
 pub struct Parser {
     tokens: Vec<Token>,
@@ -20,29 +21,63 @@ impl Parser {
     pub fn parse(&mut self) -> Vec<Stmt> {
         let mut statements = Vec::new();
         while !self.is_at_end() {
-            if let Ok(statement) = self.declaration() {
-                statements.push(statement);
-            } else {
-                self.synchronize();
+            match self.declaration() {
+                Ok(stmt) => statements.push(stmt),
+                Err(e) => {
+                    self.synchronize();
+                    e.error()
+                }
             }
         }
         statements
     }
 
     fn declaration(&mut self) -> Result<Stmt, ParseError> {
+        if self.match_token(&[FUN]) {
+            return self.function("function".to_string());
+        }
         if self.match_token(&[VAR]) {
             return self.var_declaration();
         }
         self.statement()
     }
 
+    fn function(&mut self, kind: String) -> Result<Stmt, ParseError> {
+        let name = self.consume(IDENTIFIER, format!("Expect '(' after {} name.", kind))?;
+
+        self.consume(LEFT_PAREN, format!("Expect '(' after {} name.", kind))?;
+        let mut params = Vec::new();
+        if !self.check(&RIGHT_PAREN) {
+            loop {
+                if params.len() >= 255 {
+                    return Err(ParseError {
+                        token: self.peek(),
+                        message: "Can't have more than 255 parameters.".to_string(),
+                    });
+                }
+                params.push(self.consume(IDENTIFIER, "Expect parameter name.".to_string())?);
+
+                if !self.match_token(&[COMMA]) {
+                    break;
+                }
+            }
+        }
+        self.consume(RIGHT_PAREN, "Expect ')' after parameters.".to_string())?;
+        self.consume(LEFT_BRACE, format!("Expect '{{' before {} body", kind))?;
+        let body = self.block()?;
+        Ok(Stmt::Function { name, params, body })
+    }
+
     fn var_declaration(&mut self) -> Result<Stmt, ParseError> {
-        let name = self.consume(IDENTIFIER, "Expect variable name.")?;
+        let name = self.consume(IDENTIFIER, "Expect variable name.".to_string())?;
         let mut initializer = None;
         if self.match_token(&[EQUAL]) {
             initializer = Some(Box::new(self.expression()?));
         }
-        self.consume(SEMICOLON, "Expect ';' after variable declaration.")?;
+        self.consume(
+            SEMICOLON,
+            "Expect ';' after variable declaration.".to_string(),
+        )?;
         Ok(Stmt::Var { name, initializer })
     }
 
@@ -68,7 +103,7 @@ impl Parser {
     }
 
     fn for_statement(&mut self) -> Result<Stmt, ParseError> {
-        self.consume(LEFT_PAREN, "Expect '(' after 'for'.")?;
+        self.consume(LEFT_PAREN, "Expect '(' after 'for'.".to_string())?;
         let initializer = if self.match_token(&[SEMICOLON]) {
             None
         } else if self.match_token(&[VAR]) {
@@ -81,13 +116,13 @@ impl Parser {
         if !self.check(&SEMICOLON) {
             condition = Some(self.expression()?);
         }
-        self.consume(SEMICOLON, "Expect ';' after loop condition.")?;
+        self.consume(SEMICOLON, "Expect ';' after loop condition.".to_string())?;
 
         let mut increment = None;
         if !self.check(&RIGHT_PAREN) {
             increment = Some(self.expression()?);
         }
-        self.consume(RIGHT_PAREN, "Expect ')' after for clause.")?;
+        self.consume(RIGHT_PAREN, "Expect ')' after for clause.".to_string())?;
 
         let mut body = self.statement()?;
 
@@ -119,18 +154,18 @@ impl Parser {
     }
 
     fn while_statement(&mut self) -> Result<Stmt, ParseError> {
-        self.consume(LEFT_PAREN, "Expect '(' after 'while'.")?;
+        self.consume(LEFT_PAREN, "Expect '(' after 'while'.".to_string())?;
         let condition = Box::new(self.expression()?);
-        self.consume(RIGHT_PAREN, "Expect ')' after condition.")?;
+        self.consume(RIGHT_PAREN, "Expect ')' after condition.".to_string())?;
         let body = Box::new(self.statement()?);
 
         Ok(Stmt::While { condition, body })
     }
 
     fn if_statement(&mut self) -> Result<Stmt, ParseError> {
-        self.consume(LEFT_PAREN, "Expect '(' after 'if'.")?;
+        self.consume(LEFT_PAREN, "Expect '(' after 'if'.".to_string())?;
         let condition = self.expression()?;
-        self.consume(RIGHT_PAREN, "Expect ')' after if condition.")?;
+        self.consume(RIGHT_PAREN, "Expect ')' after if condition.".to_string())?;
 
         let then_branch = self.statement()?;
         let mut else_branch = None;
@@ -150,13 +185,13 @@ impl Parser {
             stmts.push(self.declaration()?)
         }
 
-        self.consume(RIGHT_BRACE, "Expect '}' after a block")?;
+        self.consume(RIGHT_BRACE, "Expect '}' after a block".to_string())?;
         Ok(stmts)
     }
 
     fn print_statement(&mut self) -> Result<Stmt, ParseError> {
         let expr = self.expression()?;
-        self.consume(SEMICOLON, "Expect ';' after value")?;
+        self.consume(SEMICOLON, "Expect ';' after value".to_string())?;
         Ok(Stmt::Print {
             expression: Box::new(expr),
         })
@@ -164,7 +199,7 @@ impl Parser {
 
     fn expression_statement(&mut self) -> Result<Stmt, ParseError> {
         let expr = self.expression()?;
-        self.consume(SEMICOLON, "Expect ';' after value")?;
+        self.consume(SEMICOLON, "Expect ';' after value".to_string())?;
         Ok(Stmt::Expression {
             expression: Box::new(expr),
         })
@@ -189,7 +224,7 @@ impl Parser {
             }
             return Err(ParseError {
                 token: equals,
-                message: "Invaild assignment target.",
+                message: "Invaild assignment target.".to_string(),
             });
         }
         Ok(expr)
@@ -313,14 +348,14 @@ impl Parser {
                 if arguments.len() >= 255 {
                     return Err(ParseError {
                         token: self.peek(),
-                        message: "Can't have more than 255 arguments.",
+                        message: "Can't have more than 255 parameters.".to_string(),
                     });
                 }
 
                 arguments.push(self.expression()?);
             }
         }
-        let paren = self.consume(RIGHT_PAREN, "Expect ')' after arguments.")?;
+        let paren = self.consume(RIGHT_PAREN, "Expect ')' after arguments.".to_string())?;
         Ok(Expr::Call {
             callee: Box::new(callee),
             paren,
@@ -356,14 +391,14 @@ impl Parser {
         }
         if self.match_token(&[LEFT_PAREN]) {
             let expr = self.expression()?;
-            self.consume(RIGHT_PAREN, "Expect ')' after expression.")?;
+            self.consume(RIGHT_PAREN, "Expect ')' after expression.".to_string())?;
             return Ok(Expr::Grouping {
                 expression: Box::new(expr),
             });
         }
         Err(ParseError {
             token: self.peek(),
-            message: "Expect expression",
+            message: "Expect expression".to_string(),
         })
     }
 
@@ -377,11 +412,7 @@ impl Parser {
         false
     }
 
-    fn consume(
-        &mut self,
-        token_type: TokenType,
-        message: &'static str,
-    ) -> Result<Token, ParseError> {
+    fn consume(&mut self, token_type: TokenType, message: String) -> Result<Token, ParseError> {
         if self.check(&token_type) {
             Ok(self.advance())
         } else {
@@ -436,13 +467,13 @@ impl Parser {
 #[derive(Debug)]
 pub struct ParseError {
     token: Token,
-    message: &'static str,
+    message: String,
 }
 
 impl ParseError {
     pub fn error(&self) {
         {
-            Lox::error_with_token(self.token.clone(), self.message)
+            Lox::error_with_token(self.token.clone(), self.message.as_str())
         }
     }
 }

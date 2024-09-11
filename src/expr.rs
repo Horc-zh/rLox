@@ -1,4 +1,4 @@
-use crate::{token::Token, value::Value};
+use crate::{loxcallable::LoxCallable, token::Token, value::Value};
 
 pub trait Visitor<R> {
     fn visit_binary(&self, left: &Expr, operator: &Token, right: &Expr) -> R;

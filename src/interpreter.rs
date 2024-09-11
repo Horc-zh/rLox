@@ -1,22 +1,21 @@
 use crate::{
-    environment::{self, Environment},
-    expr::Expr,
-    runtime_error::RuntimeError,
-    stmt::Stmt,
-    token::Token,
-    token_type::TokenType,
-    value::Value,
+    environment::Environment, expr::Expr, loxcallable::LoxCallable, parser::ParseError,
+    runtime_error::RuntimeError, stmt::Stmt, token::Token, token_type::TokenType, value::Value,
     Lox,
 };
 
 pub struct Interpreter {
+    globals: Environment,
     environment: Environment,
 }
 
 impl Interpreter {
     pub fn new() -> Self {
+        let globals = Environment::new();
+        //TODO: implement native function like clock
         Interpreter {
-            environment: Environment::default(),
+            globals,
+            environment: Environment::new(),
         }
     }
 
@@ -42,17 +41,14 @@ impl Interpreter {
                 if let Some(initializer) = initializer {
                     value = self.evaluate(*initializer)?;
                 }
-                self.environment.define(name.lexeme, value);
+                self.globals.define(name.lexeme, value);
                 Ok(Value::Nil)
             }
             Stmt::Block { statements } => {
                 //WARNING: the return value of new_enclosing is not correct in function execute_block
                 // dbg!(&self.environment);
                 // dbg!(&Environment::new_enclosing(self.environment.clone()));
-                self.execute_block(
-                    statements,
-                    Environment::new_enclosing(self.environment.clone()),
-                )
+                self.execute_block(statements, Environment::new_enclosing(self.globals.clone()))
             }
             Stmt::If {
                 condition,
@@ -89,15 +85,15 @@ impl Interpreter {
         statements: Vec<Stmt>,
         environment: Environment,
     ) -> Result<Value, RuntimeError> {
-        let previous = std::mem::replace(&mut self.environment, environment); //useless
+        let previous = std::mem::replace(&mut self.globals, environment); //useless
         for stmt in statements {
             if let Err(e) = self.execute(stmt) {
-                self.environment = previous;
+                self.globals = previous;
                 return Err(e);
             }
         }
-        if let Some(previous) = self.environment.get_enclosing_env() {
-            self.environment = *previous;
+        if let Some(previous) = self.globals.get_enclosing_env() {
+            self.globals = *previous;
         }
         Ok(Value::Nil)
     }
@@ -116,8 +112,6 @@ impl Interpreter {
         })
     }
 
-    //TODO: change the function signatures
-    // pub fn evaluate(&mut self, expr: &Expr) -> Result<Value, RuntimeError> {
     pub fn evaluate(&mut self, expr: Expr) -> Result<Value, RuntimeError> {
         Ok(match expr {
             Expr::Binary {
@@ -188,10 +182,10 @@ impl Interpreter {
                     _ => unreachable!(),
                 }
             }
-            Expr::Variable { name } => self.environment.get(name)?,
+            Expr::Variable { name } => self.globals.get(name)?,
             Expr::Assign { name, value } => {
                 let value = self.evaluate(*value)?;
-                self.environment.assign(name, value.clone())?;
+                self.globals.assign(name, value.clone())?;
                 value
             }
             Expr::Logical {
@@ -210,6 +204,36 @@ impl Interpreter {
                     }
                 }
                 self.evaluate(*right)?
+            }
+            Expr::Call {
+                callee,
+                paren,
+                arguments,
+            } => {
+                let callee = self.evaluate(*callee)?;
+                let mut parameters = Vec::new();
+                for argument in arguments {
+                    parameters.push(self.evaluate(argument)?);
+                }
+                //TODO: implement the type checking : whether callee implement the trait,
+                //loxcallable
+
+                let function: Box<dyn LoxCallable>;
+                function = Box::new(callee);
+
+                if parameters.len() != function.arity() {
+                    return Err(RuntimeError {
+                        token: paren,
+                        message: format!(
+                            "Expect {} arguments but got {}.",
+                            function.arity(),
+                            parameters.len()
+                        ),
+                    });
+                }
+
+                let value = function.call(self, parameters);
+                return Ok(value);
             }
 
             _ => todo!(),
