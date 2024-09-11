@@ -1,5 +1,19 @@
-if (true) print "if";
-else print "else";
+  var i = 0;
+  if (i < 3) {
+      i = i + 1;
+      i = i + 1;
+      i = i + 1;
+      i = i + 1;
+      i = i + 1;
+      i = i + 1;
+      var j = 100;
+      print "in the if block";
+      print i;
+  }
+  print "out of the if block";
+  print i;
+  print j;
+ 
 
 // if (var a = true) print "if";
 // else print "else";

@@ -1,4 +1,4 @@
-use std::{clone, collections::HashMap};
+use std::collections::HashMap;
 
 use crate::{runtime_error::RuntimeError, token::Token, value::Value};
 
@@ -22,6 +22,14 @@ impl Environment {
             values: HashMap::new(),
             enclosing: Some(Box::new(enclosing)),
         }
+    }
+
+    pub fn delete_child_env(&mut self, deleted_env: Environment) -> Self {
+        todo!()
+    }
+
+    pub fn get_enclosing_env(&mut self) -> Option<Box<Self>> {
+        self.enclosing.clone()
     }
 
     // remember to handle none
@@ -62,8 +70,17 @@ mod test {
     use super::*;
 
     #[test]
-    fn test_get() {
-        todo!()
+    fn test_new_enclosing() {
+        let mut env = Environment::new();
+        env.define("a".to_string(), Value::Number(1.0));
+        let mut child_env = Environment::new_enclosing(env.clone());
+        assert_eq!(
+            child_env,
+            Environment {
+                values: HashMap::new(),
+                enclosing: Some(Box::new(env))
+            }
+        );
     }
 
     #[test]

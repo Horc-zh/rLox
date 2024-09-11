@@ -7,7 +7,7 @@ pub trait Visitor<R> {
     fn visit_unary(&self, operator: &Token, right: &Expr) -> R;
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Expr {
     Binary {
         left: Box<Expr>,
@@ -36,6 +36,11 @@ pub enum Expr {
         operator: Token,
         right: Box<Expr>,
     }, //TODO: add support for comma
+    Call {
+        callee: Box<Expr>,
+        paren: Token,
+        arguments: Vec<Expr>,
+    },
 }
 
 impl Expr {

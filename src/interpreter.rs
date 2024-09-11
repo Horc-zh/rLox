@@ -1,6 +1,12 @@
 use crate::{
-    environment::Environment, expr::Expr, runtime_error::RuntimeError, stmt::Stmt, token::Token,
-    token_type::TokenType, value::Value, Lox,
+    environment::{self, Environment},
+    expr::Expr,
+    runtime_error::RuntimeError,
+    stmt::Stmt,
+    token::Token,
+    token_type::TokenType,
+    value::Value,
+    Lox,
 };
 
 pub struct Interpreter {
@@ -22,7 +28,7 @@ impl Interpreter {
             }
         })
     }
-
+    //TODO: change the function signature otherwise there are bugs in whlie loop
     fn execute(&mut self, stmt: Stmt) -> Result<Value, RuntimeError> {
         match stmt {
             Stmt::Print { expression } => {
@@ -30,9 +36,7 @@ impl Interpreter {
                 println!("{}", value);
                 Ok(Value::Nil)
             }
-            Stmt::Expression { expression } => {
-                todo!()
-            }
+            Stmt::Expression { expression } => Ok(self.evaluate(*expression)?),
             Stmt::Var { name, initializer } => {
                 let mut value = Value::Nil;
                 if let Some(initializer) = initializer {
@@ -41,10 +45,15 @@ impl Interpreter {
                 self.environment.define(name.lexeme, value);
                 Ok(Value::Nil)
             }
-            Stmt::Block { statements } => self.execute_block(
-                statements,
-                Environment::new_enclosing(self.environment.clone()),
-            ),
+            Stmt::Block { statements } => {
+                //WARNING: the return value of new_enclosing is not correct in function execute_block
+                // dbg!(&self.environment);
+                // dbg!(&Environment::new_enclosing(self.environment.clone()));
+                self.execute_block(
+                    statements,
+                    Environment::new_enclosing(self.environment.clone()),
+                )
+            }
             Stmt::If {
                 condition,
                 then_branch,
@@ -65,6 +74,12 @@ impl Interpreter {
                 }
                 Ok(Value::Nil)
             }
+            Stmt::While { condition, body } => {
+                while self.evaluate(*condition.clone())?.is_true() {
+                    self.execute(*body.clone())?;
+                }
+                Ok(Value::Nil)
+            }
             _ => todo!(),
         }
     }
@@ -74,14 +89,16 @@ impl Interpreter {
         statements: Vec<Stmt>,
         environment: Environment,
     ) -> Result<Value, RuntimeError> {
-        let previous = std::mem::replace(&mut self.environment, environment);
+        let previous = std::mem::replace(&mut self.environment, environment); //useless
         for stmt in statements {
             if let Err(e) = self.execute(stmt) {
                 self.environment = previous;
                 return Err(e);
             }
         }
-        self.environment = previous;
+        if let Some(previous) = self.environment.get_enclosing_env() {
+            self.environment = *previous;
+        }
         Ok(Value::Nil)
     }
 
@@ -99,6 +116,8 @@ impl Interpreter {
         })
     }
 
+    //TODO: change the function signatures
+    // pub fn evaluate(&mut self, expr: &Expr) -> Result<Value, RuntimeError> {
     pub fn evaluate(&mut self, expr: Expr) -> Result<Value, RuntimeError> {
         Ok(match expr {
             Expr::Binary {
