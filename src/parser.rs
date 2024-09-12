@@ -1,5 +1,4 @@
-use std::any::Any;
-use std::{string, vec};
+use std::vec;
 
 use crate::expr::Expr;
 use crate::stmt::Stmt;
@@ -22,24 +21,35 @@ impl Parser {
         let mut statements = Vec::new();
         while !self.is_at_end() {
             match self.declaration() {
-                Ok(stmt) => statements.push(stmt),
-                Err(e) => {
-                    self.synchronize();
-                    e.error()
-                }
+                Some(stmt) => statements.push(stmt),
+                None => {}
             }
         }
         statements
     }
 
-    fn declaration(&mut self) -> Result<Stmt, ParseError> {
+    fn declaration(&mut self) -> Option<Stmt> {
+        fn parse_with_recovery<F>(parser: &mut Parser, parse_fn: F) -> Option<Stmt>
+        where
+            F: FnOnce(&mut Parser) -> Result<Stmt, ParseError>,
+        {
+            match parse_fn(parser) {
+                Ok(stmt) => Some(stmt),
+                Err(_) => {
+                    parser.synchronize();
+                    None
+                }
+            }
+        }
         if self.match_token(&[FUN]) {
-            return self.function("function".to_string());
+            return parse_with_recovery(self, |p| p.function("function".to_string()));
         }
+
         if self.match_token(&[VAR]) {
-            return self.var_declaration();
+            return parse_with_recovery(self, |p| p.var_declaration());
         }
-        self.statement()
+
+        parse_with_recovery(self, |p| p.statement())
     }
 
     fn function(&mut self, kind: String) -> Result<Stmt, ParseError> {
@@ -53,7 +63,8 @@ impl Parser {
                     return Err(ParseError {
                         token: self.peek(),
                         message: "Can't have more than 255 parameters.".to_string(),
-                    });
+                    }
+                    .error());
                 }
                 params.push(self.consume(IDENTIFIER, "Expect parameter name.".to_string())?);
 
@@ -182,7 +193,9 @@ impl Parser {
     fn block(&mut self) -> Result<Vec<Stmt>, ParseError> {
         let mut stmts = Vec::new();
         while !self.check(&RIGHT_BRACE) && !self.is_at_end() {
-            stmts.push(self.declaration()?)
+            if let Some(stmt) = self.declaration() {
+                stmts.push(stmt);
+            }
         }
 
         self.consume(RIGHT_BRACE, "Expect '}' after a block".to_string())?;
@@ -340,6 +353,7 @@ impl Parser {
         }
         Ok(expr)
     }
+
     fn finish_call(&mut self, callee: Expr) -> Result<Expr, ParseError> {
         let mut arguments = Vec::new();
         if !self.check(&RIGHT_PAREN) {
@@ -349,7 +363,8 @@ impl Parser {
                     return Err(ParseError {
                         token: self.peek(),
                         message: "Can't have more than 255 parameters.".to_string(),
-                    });
+                    }
+                    .error());
                 }
 
                 arguments.push(self.expression()?);
@@ -399,7 +414,8 @@ impl Parser {
         Err(ParseError {
             token: self.peek(),
             message: "Expect expression".to_string(),
-        })
+        }
+        .error())
     }
 
     fn match_token(&mut self, types: &[TokenType]) -> bool {
@@ -419,7 +435,8 @@ impl Parser {
             Err(ParseError {
                 token: self.peek(),
                 message,
-            })
+            }
+            .error())
         }
     }
 
@@ -471,9 +488,10 @@ pub struct ParseError {
 }
 
 impl ParseError {
-    pub fn error(&self) {
+    pub fn error(self) -> Self {
         {
-            Lox::error_with_token(self.token.clone(), self.message.as_str())
+            Lox::error_with_token(self.token.clone(), self.message.as_str());
+            self
         }
     }
 }
