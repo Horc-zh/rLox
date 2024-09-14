@@ -1,12 +1,32 @@
-use crate::loxcallable::LoxCallable;
+use crate::{loxcallable::LoxCallable, loxfunction::LoxFunction};
+use std::cmp::Ordering;
 use std::fmt::Display;
 
-#[derive(Debug, PartialEq, PartialOrd, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Value {
     Number(f64),
     Boolean(bool),
     String(String),
     Nil,
+    LoxFunction(LoxFunction),
+}
+
+impl PartialOrd for Value {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        match (self, other) {
+            (Value::Number(a), Value::Number(b)) => a.partial_cmp(b),
+            (Value::Boolean(a), Value::Boolean(b)) => a.partial_cmp(b),
+            (Value::String(a), Value::String(b)) => a.partial_cmp(b),
+            (Value::Nil, Value::Nil) => Some(Ordering::Equal),
+            // Different types cannot be compared, return None
+            (Value::Number(_), _)
+            | (Value::Boolean(_), _)
+            | (Value::String(_), _)
+            | (Value::Nil, _) => None,
+            (Value::LoxFunction(_), _) => None,
+        }
+    }
+    // add code here
 }
 
 impl Value {
@@ -24,14 +44,20 @@ impl LoxCallable for Value {
         &self,
         interpreter: &mut crate::interpreter::Interpreter,
         arguments: Vec<Value>,
-    ) -> Value {
-        todo!()
+    ) -> Result<Value, crate::runtime_error::RuntimeError> {
+        match self {
+            //WARNING: error may occur
+            Value::LoxFunction(func) => func.call(interpreter, arguments),
+            _ => unreachable!(),
+        }
     }
 
     fn arity(&self) -> usize {
-        todo!()
+        match self {
+            Value::LoxFunction(func) => func.arity(),
+            _ => unreachable!(),
+        }
     }
-    // add code here
 }
 impl Display for Value {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -40,6 +66,7 @@ impl Display for Value {
             Value::Boolean(b) => write!(f, "{}", b),
             Value::String(s) => write!(f, "{}", s),
             Value::Nil => write!(f, "nil"),
+            Value::LoxFunction(func) => write!(f, "{}", func),
         }
     }
 }

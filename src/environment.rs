@@ -24,10 +24,6 @@ impl Environment {
         }
     }
 
-    pub fn delete_child_env(&mut self, deleted_env: Environment) -> Self {
-        todo!()
-    }
-
     pub fn get_enclosing_env(&mut self) -> Option<Box<Self>> {
         self.enclosing.clone()
     }
@@ -39,6 +35,9 @@ impl Environment {
         } else if let Some(enclosing) = &self.enclosing {
             return enclosing.get(name);
         }
+        dbg!("in function get");
+        dbg!(&self.values);
+        // BUG: error occur when calling function
         Err(RuntimeError {
             token: name.clone(),
             message: format!("Undefined variable '{}'.", &name.lexeme),
@@ -65,7 +64,6 @@ impl Environment {
 
 #[cfg(test)]
 mod test {
-    use std::ptr::hash;
 
     use super::*;
 

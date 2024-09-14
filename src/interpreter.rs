@@ -1,11 +1,11 @@
 use crate::{
-    environment::Environment, expr::Expr, loxcallable::LoxCallable, parser::ParseError,
-    runtime_error::RuntimeError, stmt::Stmt, token::Token, token_type::TokenType, value::Value,
-    Lox,
+    environment::Environment, expr::Expr, loxcallable::LoxCallable, loxfunction::LoxFunction,
+    parser::ParseError, runtime_error::RuntimeError, stmt::Stmt, token::Token,
+    token_type::TokenType, value::Value, Lox,
 };
 
 pub struct Interpreter {
-    globals: Environment,
+    pub globals: Environment,
     environment: Environment,
 }
 
@@ -32,6 +32,7 @@ impl Interpreter {
         match stmt {
             Stmt::Print { expression } => {
                 let value = self.evaluate(*expression)?;
+                // dbg!(&value);
                 println!("{}", value);
                 Ok(Value::Nil)
             }
@@ -76,11 +77,28 @@ impl Interpreter {
                 }
                 Ok(Value::Nil)
             }
-            _ => todo!(),
+            Stmt::Function { name, params, body } => {
+                let function = Value::LoxFunction(LoxFunction::new(name.clone(), params, body));
+                //change here
+                self.globals.define(name.lexeme, function);
+                dbg!(&self.globals);
+                Ok(Value::Nil)
+            }
+            Stmt::Return { keyword, value } => {
+                let return_value: Value;
+
+                if let Some(value) = value {
+                    return_value = self.evaluate(value)?;
+                    return Ok(return_value);
+                }
+
+                Ok(Value::Nil)
+            }
+            _ => unreachable!(),
         }
     }
 
-    fn execute_block(
+    pub fn execute_block(
         &mut self,
         statements: Vec<Stmt>,
         environment: Environment,
@@ -113,6 +131,7 @@ impl Interpreter {
     }
 
     pub fn evaluate(&mut self, expr: Expr) -> Result<Value, RuntimeError> {
+        // dbg!(&expr);
         Ok(match expr {
             Expr::Binary {
                 left,
@@ -211,6 +230,7 @@ impl Interpreter {
                 arguments,
             } => {
                 let callee = self.evaluate(*callee)?;
+                dbg!(&callee);
                 let mut parameters = Vec::new();
                 for argument in arguments {
                     parameters.push(self.evaluate(argument)?);
@@ -232,7 +252,7 @@ impl Interpreter {
                     });
                 }
 
-                let value = function.call(self, parameters);
+                let value = function.call(self, parameters)?;
                 return Ok(value);
             }
 

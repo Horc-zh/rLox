@@ -1,3 +1,6 @@
+[profile.dev]
+debug = true # 确保生成调试符号
+
 [package]
 name = "lox"
 version = "0.1.0"
