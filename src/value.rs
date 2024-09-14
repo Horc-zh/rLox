@@ -44,7 +44,7 @@ impl LoxCallable for Value {
         &self,
         interpreter: &mut crate::interpreter::Interpreter,
         arguments: Vec<Value>,
-    ) -> Result<Value, crate::runtime_error::RuntimeError> {
+    ) -> Result<Value, crate::loxresult::LoxResult> {
         match self {
             //WARNING: error may occur
             Value::LoxFunction(func) => func.call(interpreter, arguments),

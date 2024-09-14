@@ -4,19 +4,17 @@ mod expr;
 mod interpreter;
 mod loxcallable;
 mod loxfunction;
+mod loxresult;
 mod parser;
-mod runtime_error;
 mod scanner;
 mod stmt;
 mod token;
 mod token_type;
 mod value;
 
-use expr::Expr;
 use interpreter::Interpreter;
-use lazy_static::lazy_static;
+use loxresult::LoxResult;
 use once_cell::sync::Lazy;
-use parser::Parser;
 use scanner::Scanner;
 use token::Token;
 use token_type::TokenType;
@@ -87,8 +85,14 @@ impl Lox {
         unsafe { LOX.interpreter.interpret(statements) }
     }
 
-    pub(crate) fn runtime_error(error: runtime_error::RuntimeError) {
-        eprintln!("{}\n[line {}]", error.message, error.token.line);
+    pub(crate) fn runtime_error(error: LoxResult) {
+        match error {
+            LoxResult::RuntimeError { token, message }
+            | LoxResult::ParseError { token, message } => {
+                eprintln!("[line {}] {}  ", token.line, message)
+            }
+            _ => unreachable!(),
+        }
         unsafe {
             LOX.had_runtime_error = true;
         }
@@ -98,7 +102,7 @@ impl Lox {
         Self::report(line, "", message);
     }
 
-    pub fn error_with_token(token: Token, message: &str) {
+    pub fn error_with_token(token: &Token, message: &str) {
         if token.token_type == TokenType::EOF {
             Self::report(token.line, " at end", message);
         } else {

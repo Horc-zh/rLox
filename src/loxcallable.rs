@@ -1,10 +1,10 @@
-use crate::{interpreter::Interpreter, runtime_error::RuntimeError, value::Value};
+use crate::{interpreter::Interpreter, loxresult::LoxResult, value::Value};
 
 pub trait LoxCallable {
     fn call(
         &self,
         interpreter: &mut Interpreter,
         arguments: Vec<Value>,
-    ) -> Result<Value, RuntimeError>;
+    ) -> Result<Value, LoxResult>;
     fn arity(&self) -> usize;
 }

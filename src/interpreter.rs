@@ -1,10 +1,10 @@
 use crate::{
     environment::Environment, expr::Expr, loxcallable::LoxCallable, loxfunction::LoxFunction,
-    parser::ParseError, runtime_error::RuntimeError, stmt::Stmt, token::Token,
-    token_type::TokenType, value::Value, Lox,
+    loxresult::LoxResult, stmt::Stmt, token::Token, token_type::TokenType, value::Value, Lox,
 };
 
 pub struct Interpreter {
+    //should change globals to Rc
     pub globals: Environment,
     environment: Environment,
 }
@@ -28,11 +28,10 @@ impl Interpreter {
         })
     }
     //TODO: change the function signature otherwise there are bugs in whlie loop
-    fn execute(&mut self, stmt: Stmt) -> Result<Value, RuntimeError> {
+    fn execute(&mut self, stmt: Stmt) -> Result<Value, LoxResult> {
         match stmt {
             Stmt::Print { expression } => {
                 let value = self.evaluate(*expression)?;
-                // dbg!(&value);
                 println!("{}", value);
                 Ok(Value::Nil)
             }
@@ -47,8 +46,6 @@ impl Interpreter {
             }
             Stmt::Block { statements } => {
                 //WARNING: the return value of new_enclosing is not correct in function execute_block
-                // dbg!(&self.environment);
-                // dbg!(&Environment::new_enclosing(self.environment.clone()));
                 self.execute_block(statements, Environment::new_enclosing(self.globals.clone()))
             }
             Stmt::If {
@@ -81,18 +78,17 @@ impl Interpreter {
                 let function = Value::LoxFunction(LoxFunction::new(name.clone(), params, body));
                 //change here
                 self.globals.define(name.lexeme, function);
-                dbg!(&self.globals);
+                //WARNING: error
                 Ok(Value::Nil)
             }
-            Stmt::Return { keyword, value } => {
-                let return_value: Value;
-
+            Stmt::Return { keyword: _, value } => {
+                let mut return_value = Value::Nil;
                 if let Some(value) = value {
                     return_value = self.evaluate(value)?;
-                    return Ok(return_value);
                 }
-
-                Ok(Value::Nil)
+                Err(LoxResult::ReturnValue {
+                    value: return_value,
+                })
             }
             _ => unreachable!(),
         }
@@ -102,7 +98,7 @@ impl Interpreter {
         &mut self,
         statements: Vec<Stmt>,
         environment: Environment,
-    ) -> Result<Value, RuntimeError> {
+    ) -> Result<Value, LoxResult> {
         let previous = std::mem::replace(&mut self.globals, environment); //useless
         for stmt in statements {
             if let Err(e) = self.execute(stmt) {
@@ -120,18 +116,17 @@ impl Interpreter {
         operator: &Token,
         left: &Value,
         right: &Value,
-    ) -> Result<(), RuntimeError> {
+    ) -> Result<(), LoxResult> {
         if let (Value::Number(_), Value::Number(_)) = (left, right) {
             return Ok(());
         }
-        Err(RuntimeError {
+        Err(LoxResult::RuntimeError {
             token: operator.clone(),
             message: format!("Operand must be a number"),
         })
     }
 
-    pub fn evaluate(&mut self, expr: Expr) -> Result<Value, RuntimeError> {
-        // dbg!(&expr);
+    pub fn evaluate(&mut self, expr: Expr) -> Result<Value, LoxResult> {
         Ok(match expr {
             Expr::Binary {
                 left,
@@ -146,7 +141,7 @@ impl Interpreter {
                         (Value::Number(_), Value::Number(_))
                         | (Value::String(_), Value::String(_)) => left + right,
                         _ => {
-                            return Err(RuntimeError {
+                            return Err(LoxResult::RuntimeError {
                                 token: operator,
                                 message: format!("Operands must be two numbers or two strings."),
                             })
@@ -201,6 +196,8 @@ impl Interpreter {
                     _ => unreachable!(),
                 }
             }
+            //WARNING:
+            //self.environment.get
             Expr::Variable { name } => self.globals.get(name)?,
             Expr::Assign { name, value } => {
                 let value = self.evaluate(*value)?;
@@ -229,8 +226,12 @@ impl Interpreter {
                 paren,
                 arguments,
             } => {
+                // dbg!(&callee);
+                // dbg!(&paren);
+                // dbg!(&arguments);
+
                 let callee = self.evaluate(*callee)?;
-                dbg!(&callee);
+
                 let mut parameters = Vec::new();
                 for argument in arguments {
                     parameters.push(self.evaluate(argument)?);
@@ -242,7 +243,7 @@ impl Interpreter {
                 function = Box::new(callee);
 
                 if parameters.len() != function.arity() {
-                    return Err(RuntimeError {
+                    return Err(LoxResult::RuntimeError {
                         token: paren,
                         message: format!(
                             "Expect {} arguments but got {}.",

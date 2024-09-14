@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{runtime_error::RuntimeError, token::Token, value::Value};
+use crate::{loxresult::LoxResult, token::Token, value::Value};
 
 #[derive(Debug, Default, PartialEq, Clone)]
 pub struct Environment {
@@ -29,22 +29,21 @@ impl Environment {
     }
 
     // remember to handle none
-    pub fn get(&self, name: Token) -> Result<Value, RuntimeError> {
+    pub fn get(&self, name: Token) -> Result<Value, LoxResult> {
+        // dbg!(&self);
         if let Some(v) = self.values.get(&name.lexeme) {
             return Ok(v.clone());
         } else if let Some(enclosing) = &self.enclosing {
             return enclosing.get(name);
         }
-        dbg!("in function get");
-        dbg!(&self.values);
         // BUG: error occur when calling function
-        Err(RuntimeError {
+        Err(LoxResult::RuntimeError {
             token: name.clone(),
             message: format!("Undefined variable '{}'.", &name.lexeme),
         })
     }
 
-    pub fn assign(&mut self, name: Token, value: Value) -> Result<(), RuntimeError> {
+    pub fn assign(&mut self, name: Token, value: Value) -> Result<(), LoxResult> {
         if self.values.contains_key(&name.lexeme) {
             self.values.insert(name.lexeme.clone(), value);
             return Ok(());
@@ -55,7 +54,7 @@ impl Environment {
             return Ok(());
         }
 
-        Err(RuntimeError {
+        Err(LoxResult::RuntimeError {
             token: name.clone(),
             message: format!("Undefined variable '{}'.", &name.lexeme),
         })

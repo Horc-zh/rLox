@@ -1,3 +1,4 @@
+use crate::LoxResult;
 use std::vec;
 
 use crate::expr::Expr;
@@ -5,7 +6,6 @@ use crate::stmt::Stmt;
 use crate::token::{Literal, Token};
 use crate::token_type::TokenType;
 use crate::token_type::TokenType::*;
-use crate::Lox;
 
 pub struct Parser {
     tokens: Vec<Token>,
@@ -31,7 +31,7 @@ impl Parser {
     fn declaration(&mut self) -> Option<Stmt> {
         fn parse_with_recovery<F>(parser: &mut Parser, parse_fn: F) -> Option<Stmt>
         where
-            F: FnOnce(&mut Parser) -> Result<Stmt, ParseError>,
+            F: FnOnce(&mut Parser) -> Result<Stmt, LoxResult>,
         {
             match parse_fn(parser) {
                 Ok(stmt) => Some(stmt),
@@ -52,7 +52,7 @@ impl Parser {
         parse_with_recovery(self, |p| p.statement())
     }
 
-    fn function(&mut self, kind: String) -> Result<Stmt, ParseError> {
+    fn function(&mut self, kind: String) -> Result<Stmt, LoxResult> {
         let name = self.consume(IDENTIFIER, format!("Expect '(' after {} name.", kind))?;
 
         self.consume(LEFT_PAREN, format!("Expect '(' after {} name.", kind))?;
@@ -60,7 +60,7 @@ impl Parser {
         if !self.check(&RIGHT_PAREN) {
             loop {
                 if params.len() >= 255 {
-                    return Err(ParseError {
+                    return Err(LoxResult::ParseError {
                         token: self.peek(),
                         message: "Can't have more than 255 parameters.".to_string(),
                     }
@@ -79,7 +79,7 @@ impl Parser {
         Ok(Stmt::Function { name, params, body })
     }
 
-    fn var_declaration(&mut self) -> Result<Stmt, ParseError> {
+    fn var_declaration(&mut self) -> Result<Stmt, LoxResult> {
         let name = self.consume(IDENTIFIER, "Expect variable name.".to_string())?;
         let mut initializer = None;
         if self.match_token(&[EQUAL]) {
@@ -92,7 +92,7 @@ impl Parser {
         Ok(Stmt::Var { name, initializer })
     }
 
-    fn statement(&mut self) -> Result<Stmt, ParseError> {
+    fn statement(&mut self) -> Result<Stmt, LoxResult> {
         if self.match_token(&[FOR]) {
             return self.for_statement();
         }
@@ -116,7 +116,7 @@ impl Parser {
         self.expression_statement()
     }
 
-    fn return_statement(&mut self) -> Result<Stmt, ParseError> {
+    fn return_statement(&mut self) -> Result<Stmt, LoxResult> {
         let keyword = self.previous();
         let mut value = None;
         if !self.check(&SEMICOLON) {
@@ -126,7 +126,7 @@ impl Parser {
         Ok(Stmt::Return { keyword, value })
     }
 
-    fn for_statement(&mut self) -> Result<Stmt, ParseError> {
+    fn for_statement(&mut self) -> Result<Stmt, LoxResult> {
         self.consume(LEFT_PAREN, "Expect '(' after 'for'.".to_string())?;
         let initializer = if self.match_token(&[SEMICOLON]) {
             None
@@ -177,7 +177,7 @@ impl Parser {
         Ok(body)
     }
 
-    fn while_statement(&mut self) -> Result<Stmt, ParseError> {
+    fn while_statement(&mut self) -> Result<Stmt, LoxResult> {
         self.consume(LEFT_PAREN, "Expect '(' after 'while'.".to_string())?;
         let condition = Box::new(self.expression()?);
         self.consume(RIGHT_PAREN, "Expect ')' after condition.".to_string())?;
@@ -186,7 +186,7 @@ impl Parser {
         Ok(Stmt::While { condition, body })
     }
 
-    fn if_statement(&mut self) -> Result<Stmt, ParseError> {
+    fn if_statement(&mut self) -> Result<Stmt, LoxResult> {
         self.consume(LEFT_PAREN, "Expect '(' after 'if'.".to_string())?;
         let condition = self.expression()?;
         self.consume(RIGHT_PAREN, "Expect ')' after if condition.".to_string())?;
@@ -203,7 +203,7 @@ impl Parser {
         })
     }
 
-    fn block(&mut self) -> Result<Vec<Stmt>, ParseError> {
+    fn block(&mut self) -> Result<Vec<Stmt>, LoxResult> {
         let mut stmts = Vec::new();
         while !self.check(&RIGHT_BRACE) && !self.is_at_end() {
             if let Some(stmt) = self.declaration() {
@@ -215,7 +215,7 @@ impl Parser {
         Ok(stmts)
     }
 
-    fn print_statement(&mut self) -> Result<Stmt, ParseError> {
+    fn print_statement(&mut self) -> Result<Stmt, LoxResult> {
         let expr = self.expression()?;
         self.consume(SEMICOLON, "Expect ';' after value".to_string())?;
         Ok(Stmt::Print {
@@ -223,7 +223,7 @@ impl Parser {
         })
     }
 
-    fn expression_statement(&mut self) -> Result<Stmt, ParseError> {
+    fn expression_statement(&mut self) -> Result<Stmt, LoxResult> {
         let expr = self.expression()?;
         self.consume(SEMICOLON, "Expect ';' after value".to_string())?;
         Ok(Stmt::Expression {
@@ -231,11 +231,11 @@ impl Parser {
         })
     }
 
-    pub fn expression(&mut self) -> Result<Expr, ParseError> {
+    pub fn expression(&mut self) -> Result<Expr, LoxResult> {
         self.assignment()
     }
 
-    fn assignment(&mut self) -> Result<Expr, ParseError> {
+    fn assignment(&mut self) -> Result<Expr, LoxResult> {
         let expr = self.or()?;
 
         if self.match_token(&[EQUAL]) {
@@ -248,7 +248,7 @@ impl Parser {
                     value: Box::new(value),
                 });
             }
-            return Err(ParseError {
+            return Err(LoxResult::ParseError {
                 token: equals,
                 message: "Invaild assignment target.".to_string(),
             });
@@ -256,7 +256,7 @@ impl Parser {
         Ok(expr)
     }
 
-    fn or(&mut self) -> Result<Expr, ParseError> {
+    fn or(&mut self) -> Result<Expr, LoxResult> {
         let mut expr = self.and()?;
 
         while self.match_token(&[OR]) {
@@ -271,7 +271,7 @@ impl Parser {
         Ok(expr)
     }
 
-    fn and(&mut self) -> Result<Expr, ParseError> {
+    fn and(&mut self) -> Result<Expr, LoxResult> {
         let mut expr = self.equality()?;
 
         while self.match_token(&[AND]) {
@@ -287,7 +287,7 @@ impl Parser {
         Ok(expr)
     }
 
-    fn equality(&mut self) -> Result<Expr, ParseError> {
+    fn equality(&mut self) -> Result<Expr, LoxResult> {
         let mut expr = self.comparison()?;
         while self.match_token(&[BANG_EQUAL, EQUAL_EQUAL]) {
             let operator = self.previous();
@@ -301,7 +301,7 @@ impl Parser {
         Ok(expr)
     }
 
-    fn comparison(&mut self) -> Result<Expr, ParseError> {
+    fn comparison(&mut self) -> Result<Expr, LoxResult> {
         let mut expr = self.term()?;
         while self.match_token(&[GREATER, GREATER_EQUAL, LESS, LESS_EQUAL]) {
             let operator = self.previous();
@@ -315,7 +315,7 @@ impl Parser {
         Ok(expr)
     }
 
-    fn term(&mut self) -> Result<Expr, ParseError> {
+    fn term(&mut self) -> Result<Expr, LoxResult> {
         let mut expr = self.factor()?;
         while self.match_token(&[MINUS, PLUS]) {
             let operator = self.previous();
@@ -329,7 +329,7 @@ impl Parser {
         Ok(expr)
     }
 
-    fn factor(&mut self) -> Result<Expr, ParseError> {
+    fn factor(&mut self) -> Result<Expr, LoxResult> {
         let mut expr = self.unary()?;
         while self.match_token(&[SLASH, STAR]) {
             let operator = self.previous();
@@ -343,7 +343,7 @@ impl Parser {
         Ok(expr)
     }
 
-    fn unary(&mut self) -> Result<Expr, ParseError> {
+    fn unary(&mut self) -> Result<Expr, LoxResult> {
         if self.match_token(&[BANG, MINUS]) {
             let operator = self.previous();
             let right = self.unary()?;
@@ -355,7 +355,7 @@ impl Parser {
         self.call()
     }
 
-    fn call(&mut self) -> Result<Expr, ParseError> {
+    fn call(&mut self) -> Result<Expr, LoxResult> {
         let mut expr = self.primary()?;
         loop {
             if self.match_token(&[LEFT_PAREN]) {
@@ -367,13 +367,13 @@ impl Parser {
         Ok(expr)
     }
 
-    fn finish_call(&mut self, callee: Expr) -> Result<Expr, ParseError> {
+    fn finish_call(&mut self, callee: Expr) -> Result<Expr, LoxResult> {
         let mut arguments = Vec::new();
         if !self.check(&RIGHT_PAREN) {
             arguments.push(self.expression()?);
             while self.match_token(&[COMMA]) {
                 if arguments.len() >= 255 {
-                    return Err(ParseError {
+                    return Err(LoxResult::ParseError {
                         token: self.peek(),
                         message: "Can't have more than 255 parameters.".to_string(),
                     }
@@ -391,7 +391,7 @@ impl Parser {
         })
     }
 
-    fn primary(&mut self) -> Result<Expr, ParseError> {
+    fn primary(&mut self) -> Result<Expr, LoxResult> {
         if self.match_token(&[FALSE]) {
             return Ok(Expr::Literal {
                 value: Literal::Bool(false),
@@ -424,7 +424,7 @@ impl Parser {
                 expression: Box::new(expr),
             });
         }
-        Err(ParseError {
+        Err(LoxResult::ParseError {
             token: self.peek(),
             message: "Expect expression".to_string(),
         }
@@ -441,11 +441,11 @@ impl Parser {
         false
     }
 
-    fn consume(&mut self, token_type: TokenType, message: String) -> Result<Token, ParseError> {
+    fn consume(&mut self, token_type: TokenType, message: String) -> Result<Token, LoxResult> {
         if self.check(&token_type) {
             Ok(self.advance())
         } else {
-            Err(ParseError {
+            Err(LoxResult::ParseError {
                 token: self.peek(),
                 message,
             }
@@ -494,21 +494,6 @@ impl Parser {
     }
 }
 
-#[derive(Debug)]
-pub struct ParseError {
-    token: Token,
-    message: String,
-}
-
-impl ParseError {
-    pub fn error(self) -> Self {
-        {
-            Lox::error_with_token(self.token.clone(), self.message.as_str());
-            self
-        }
-    }
-}
-
 #[cfg(test)]
 mod test {
 
@@ -517,22 +502,13 @@ mod test {
 
     use super::*;
 
-    // #[test]
-    // fn test_vec() {
-    //     let mut body = 1;
-    //     let mut i = 0;
-    //     while i < 5 {
-    //         i = i + 1;
-    //         body = vec![body, i];
-    //     }
-    // }
-
     #[test]
     fn test_parse_val() {
         let mut scanner = Scanner::new("var a = 1;\nprint a;".to_string());
         let tokens = scanner.scan_tokens();
         let mut parse = Parser::new(tokens.to_vec());
         let stmts = parse.parse();
+        dbg!(stmts);
         assert!(false)
     }
 
