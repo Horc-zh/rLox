@@ -4,8 +4,10 @@ use crate::{
 };
 
 pub struct Interpreter {
+    ///是整个解释器的全局环境，用于保存全局变量
     //should change globals to Rc
     pub globals: Environment,
+    ///每个大括号作用域的子环境
     environment: Environment,
 }
 

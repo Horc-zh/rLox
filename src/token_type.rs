@@ -1,3 +1,4 @@
+///定义了lox语言中的所有token
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TokenType {
     // Single-character tokens.

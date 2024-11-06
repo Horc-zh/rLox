@@ -497,7 +497,7 @@ impl Parser {
 #[cfg(test)]
 mod test {
 
-    use crate::ast_printer;
+    // use crate::ast_printer;
     use crate::scanner::Scanner;
 
     use super::*;

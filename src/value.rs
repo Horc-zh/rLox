@@ -2,6 +2,7 @@ use crate::{loxcallable::LoxCallable, loxfunction::LoxFunction};
 use std::cmp::Ordering;
 use std::fmt::Display;
 
+///定义了lox中的数据类型
 #[derive(Debug, PartialEq, Clone)]
 pub enum Value {
     Number(f64),
@@ -11,6 +12,7 @@ pub enum Value {
     LoxFunction(LoxFunction),
 }
 
+///为[`Value`]实现了比较功能
 impl PartialOrd for Value {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         match (self, other) {
@@ -39,6 +41,7 @@ impl Value {
     }
 }
 
+///为[`Value::LoxFunction`]实现了调用功能,如果[`Value`] 类型不为[`Value::LoxFunction`], 则[`unreachable`]
 impl LoxCallable for Value {
     fn call(
         &self,

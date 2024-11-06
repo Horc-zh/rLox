@@ -1,3 +1,6 @@
+/*!
+scanner.rs是用于词法分析的文件，它将文本分析成`token`流，并将`token`流传递给语法分析器 */
+
 use crate::token::Literal;
 use crate::token::Token;
 use crate::token_type::TokenType;
@@ -7,7 +10,8 @@ use lazy_static::lazy_static;
 use std::collections::HashMap;
 
 lazy_static! {
-    static ref KEYWORDS: HashMap<String, TokenType> = {
+///使用lazy定义了lox语言的关键字
+    pub static ref KEYWORDS: HashMap<String, TokenType> = {
         [
             ("and", AND),
             ("class", CLASS),
@@ -32,11 +36,17 @@ lazy_static! {
     };
 }
 
+///`Scanner`结构体
 pub struct Scanner {
+    ///源代码
     source: String,
+    ///保存分析得出的token流
     tokens: Vec<Token>,
+    ///记录了一个词开头在`source`中的位置
     start: i32,
+    ///记录分析到了位置
     current: i32,
+    ///记录分析到了文件的哪一行，每次遇到一个`\n`，`line = line + 1`
     line: i32,
 }
 
@@ -51,6 +61,7 @@ impl Scanner {
         }
     }
 
+    ///启动scanner进行词法分析
     pub fn scan_tokens(mut self) -> Vec<Token> {
         while !self.is_at_end() {
             self.start = self.current;
@@ -66,6 +77,17 @@ impl Scanner {
         self.current >= self.source.len() as i32
     }
 
+    ///对每一个字符进行扫描，如果是符号，E.g. （, ), }, !, < 就在本函数进行处理，将符号化成token
+    ///如果不是符号，有如下逻辑：
+    ///
+    ///  
+    ///  if [`Scanner::is_digit`] => [`Scanner::number`]
+    ///
+    ///  if [`Scanner::is_alpha`] => [`Scanner::identifier`]
+    ///  
+    ///   对于异常，我们有：
+    ///   _ => [`Lox::error_with_line`]
+    ///
     fn scan_token(&mut self) {
         let c = self.advance();
         match c {
@@ -129,6 +151,7 @@ impl Scanner {
         }
     }
 
+    ///识别TRUE，FALSE，NIL
     fn identifier(&mut self) {
         while Scanner::is_alphanumeric(self.peek()) {
             self.advance();
@@ -142,6 +165,7 @@ impl Scanner {
             _ => self.add_token(token_type),
         }
     }
+    ///识别字符串
     fn string(&mut self) {
         while self.peek() != '"' && !self.is_at_end() {
             if self.peek() == '\n' {
@@ -161,6 +185,7 @@ impl Scanner {
         self.add_token_with_literal(STRING, Some(Literal::String(value.to_string())));
     }
 
+    ///识别数字
     fn number(&mut self) {
         while Scanner::is_digit(self.peek()) {
             self.advance();
@@ -177,7 +202,7 @@ impl Scanner {
         self.add_token_with_literal(NUMBER, Some(Literal::Number(value.parse().unwrap())));
     }
 
-    // 判断当前字符是否为expected，如果是，current指针后移一位
+    /// 判断当前字符是否为expected，如果是，current指针后移一位
     fn match_char(&mut self, expected: char) -> bool {
         if self.is_at_end() {
             return false;
@@ -190,7 +215,7 @@ impl Scanner {
         true
     }
 
-    // 查看当前字符，但不移动current指针
+    /// 查看当前字符，但不移动current指针
     fn peek(&self) -> char {
         if self.is_at_end() {
             return '\0';
@@ -198,7 +223,7 @@ impl Scanner {
         self.source.chars().nth(self.current as usize).unwrap()
     }
 
-    // 预览下一个字符
+    /// 预览下一个字符
     fn peek_next(&self) -> char {
         if self.current + 1 >= self.source.len() as i32 {
             return '\0';
@@ -209,22 +234,22 @@ impl Scanner {
             .unwrap()
     }
 
-    // 判断是否是字母
+    /// 判断是否是字母
     fn is_alpha(c: char) -> bool {
         c.is_ascii_lowercase() || c.is_ascii_uppercase() || c == '_'
     }
 
-    // 判断是否是字母或数字
+    /// 判断是否是字母或数字
     fn is_alphanumeric(c: char) -> bool {
         Scanner::is_alpha(c) || Scanner::is_digit(c)
     }
 
-    // 判断是否是数字
+    /// 判断是否是数字
     fn is_digit(c: char) -> bool {
         c >= '0' && c <= '9'
     }
 
-    // 查看当前字符并将current指针后移一位
+    /// 查看当前字符并将current指针后移一位
     fn advance(&mut self) -> char {
         self.current += 1;
         self.source
@@ -233,14 +258,14 @@ impl Scanner {
             .unwrap()
     }
 
-    // 添加token
+    /// 添加token
     fn add_token(&mut self, token_type: TokenType) {
         let text = &self.source[self.start as usize..self.current as usize];
         self.tokens
             .push(Token::new(token_type, text.to_string(), None, self.line));
     }
 
-    // 添加带有字面量的token
+    /// 添加带有字面量的token
     fn add_token_with_literal(&mut self, token_type: TokenType, literal: Option<Literal>) {
         let text = &self.source[self.start as usize..self.current as usize];
         self.tokens
