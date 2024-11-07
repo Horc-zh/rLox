@@ -1,5 +1,4 @@
-/*!
-scanner.rs是用于词法分析的文件，它将文本分析成`token`流，并将`token`流传递给语法分析器 */
+//! scanner.rs是用于词法分析的文件，它将文本分析成`token`流，并将`token`流传递给语法分析器[`crate::parser`]
 
 use crate::token::Literal;
 use crate::token::Token;
@@ -11,6 +10,7 @@ use std::collections::HashMap;
 
 lazy_static! {
 ///使用lazy定义了lox语言的关键字
+    ///内部是一个HASHMAP,可以点击左上角的*source*查看源码
     pub static ref KEYWORDS: HashMap<String, TokenType> = {
         [
             ("and", AND),

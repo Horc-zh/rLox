@@ -1,3 +1,5 @@
+//!parser.rs 是用于进行语法分析的文件，将token流转换为 [`Stmt`]，这将用在[`crate::interpreter`]中
+
 use crate::LoxResult;
 use std::vec;
 
@@ -7,16 +9,29 @@ use crate::token::{Literal, Token};
 use crate::token_type::TokenType;
 use crate::token_type::TokenType::*;
 
+///定义parser结构体
 pub struct Parser {
+    ///记录由scanner传递来的token流
     tokens: Vec<Token>,
+    ///记录现在分析到的token
     current: usize,
 }
 
+///使用递归下降分析:
+///
+///对于本`impl` 的调用逻辑，详见[`crate`]的语法规则
+///
+///-------
+///
+///异常处理:
+///
+///如果发生异常，参与分析的函数都将返回[`LoxResult`]
 impl Parser {
     pub fn new(tokens: Vec<Token>) -> Self {
         Parser { tokens, current: 0 }
     }
 
+    ///开始语法分析，把token流转化为语句
     pub fn parse(&mut self) -> Vec<Stmt> {
         let mut statements = Vec::new();
         while !self.is_at_end() {
@@ -52,6 +67,7 @@ impl Parser {
         parse_with_recovery(self, |p| p.statement())
     }
 
+    ///对函数调用的token进行分析
     fn function(&mut self, kind: String) -> Result<Stmt, LoxResult> {
         let name = self.consume(IDENTIFIER, format!("Expect '(' after {} name.", kind))?;
 
@@ -79,6 +95,7 @@ impl Parser {
         Ok(Stmt::Function { name, params, body })
     }
 
+    ///对变量定义的token进行分析
     fn var_declaration(&mut self) -> Result<Stmt, LoxResult> {
         let name = self.consume(IDENTIFIER, "Expect variable name.".to_string())?;
         let mut initializer = None;
@@ -92,6 +109,10 @@ impl Parser {
         Ok(Stmt::Var { name, initializer })
     }
 
+    ///分析statement的token，包括[`TokenType::FOR`], [`TokenType::IF`],
+    ///[`TokenType::PRINT`],[`TokenType::RETURN`],[`TokenType::WHILE`],[`TokenType::LEFT_BRACE`]
+    ///
+    ///如果以上[`TokenType`] 都不匹配,那么就进入[`Parser::expression_statement`] 函数
     fn statement(&mut self) -> Result<Stmt, LoxResult> {
         if self.match_token(&[FOR]) {
             return self.for_statement();
@@ -223,6 +244,7 @@ impl Parser {
         })
     }
 
+    ///分析token，将其转换成[`Stmt::Expression`],并返回
     fn expression_statement(&mut self) -> Result<Stmt, LoxResult> {
         let expr = self.expression()?;
         self.consume(SEMICOLON, "Expect ';' after value".to_string())?;
@@ -231,10 +253,12 @@ impl Parser {
         })
     }
 
+    ///调用了[`Parser::assignment`]
     pub fn expression(&mut self) -> Result<Expr, LoxResult> {
         self.assignment()
     }
 
+    ///分析赋值语句，返回[`Expr::Assign`]
     fn assignment(&mut self) -> Result<Expr, LoxResult> {
         let expr = self.or()?;
 
@@ -431,6 +455,7 @@ impl Parser {
         .error())
     }
 
+    ///查看当前分析的token是否在types中，用来决定下一步的分析走向
     fn match_token(&mut self, types: &[TokenType]) -> bool {
         for token_type in types {
             if self.check(token_type) {
@@ -441,6 +466,9 @@ impl Parser {
         false
     }
 
+    ///让下一个token进入分析
+    ///
+    ///如果下一个token与 [`TokenType`] 不匹配，则抛出异常
     fn consume(&mut self, token_type: TokenType, message: String) -> Result<Token, LoxResult> {
         if self.check(&token_type) {
             Ok(self.advance())
