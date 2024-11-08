@@ -6,13 +6,18 @@ use crate::token::Token;
 use crate::value::Value;
 use crate::{loxcallable::LoxCallable, stmt::Stmt};
 
+///定义了函数结构
 #[derive(PartialEq, Clone, Debug)]
 struct Declaration {
+    ///函数名称
     name: Token,
+    ///参数列表
     params: Vec<Token>,
+    ///函数体
     body: Vec<Stmt>,
 }
 
+///定义了函数
 #[derive(PartialEq, Clone, Debug)]
 pub struct LoxFunction {
     declaration: Declaration,
@@ -33,6 +38,7 @@ impl LoxFunction {
     }
 }
 
+///为[`LoxFunction`] 实现 [`fmt::Display`] ,这样可以使用[`print`]打印出函数的类型
 impl fmt::Display for LoxFunction {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "<fn {}>", self.declaration.name.lexeme)

@@ -30,7 +30,6 @@ impl Environment {
 
     // remember to handle none
     pub fn get(&self, name: Token) -> Result<Value, LoxResult> {
-        // dbg!(&self);
         if let Some(v) = self.values.get(&name.lexeme) {
             return Ok(v.clone());
         } else if let Some(enclosing) = &self.enclosing {

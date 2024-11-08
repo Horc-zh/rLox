@@ -1,3 +1,4 @@
+//not work
 fun makeCounter() {
   var i = 0;
   fun count() {

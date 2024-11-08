@@ -137,6 +137,7 @@ impl Parser {
         self.expression_statement()
     }
 
+    ///处理return语句
     fn return_statement(&mut self) -> Result<Stmt, LoxResult> {
         let keyword = self.previous();
         let mut value = None;
@@ -147,6 +148,7 @@ impl Parser {
         Ok(Stmt::Return { keyword, value })
     }
 
+    ///处理for语句
     fn for_statement(&mut self) -> Result<Stmt, LoxResult> {
         self.consume(LEFT_PAREN, "Expect '(' after 'for'.".to_string())?;
         let initializer = if self.match_token(&[SEMICOLON]) {
@@ -198,6 +200,7 @@ impl Parser {
         Ok(body)
     }
 
+    ///处理while
     fn while_statement(&mut self) -> Result<Stmt, LoxResult> {
         self.consume(LEFT_PAREN, "Expect '(' after 'while'.".to_string())?;
         let condition = Box::new(self.expression()?);
@@ -207,6 +210,7 @@ impl Parser {
         Ok(Stmt::While { condition, body })
     }
 
+    ///处理if
     fn if_statement(&mut self) -> Result<Stmt, LoxResult> {
         self.consume(LEFT_PAREN, "Expect '(' after 'if'.".to_string())?;
         let condition = self.expression()?;
@@ -224,6 +228,7 @@ impl Parser {
         })
     }
 
+    ///处理大括号块
     fn block(&mut self) -> Result<Vec<Stmt>, LoxResult> {
         let mut stmts = Vec::new();
         while !self.check(&RIGHT_BRACE) && !self.is_at_end() {
@@ -236,6 +241,7 @@ impl Parser {
         Ok(stmts)
     }
 
+    ///处理print语句
     fn print_statement(&mut self) -> Result<Stmt, LoxResult> {
         let expr = self.expression()?;
         self.consume(SEMICOLON, "Expect ';' after value".to_string())?;
@@ -280,6 +286,7 @@ impl Parser {
         Ok(expr)
     }
 
+    ///处理or运算符
     fn or(&mut self) -> Result<Expr, LoxResult> {
         let mut expr = self.and()?;
 
@@ -295,6 +302,7 @@ impl Parser {
         Ok(expr)
     }
 
+    ///处理and运算符
     fn and(&mut self) -> Result<Expr, LoxResult> {
         let mut expr = self.equality()?;
 
@@ -311,6 +319,7 @@ impl Parser {
         Ok(expr)
     }
 
+    ///处理 ==
     fn equality(&mut self) -> Result<Expr, LoxResult> {
         let mut expr = self.comparison()?;
         while self.match_token(&[BANG_EQUAL, EQUAL_EQUAL]) {
@@ -325,6 +334,7 @@ impl Parser {
         Ok(expr)
     }
 
+    ///处理比较运算符
     fn comparison(&mut self) -> Result<Expr, LoxResult> {
         let mut expr = self.term()?;
         while self.match_token(&[GREATER, GREATER_EQUAL, LESS, LESS_EQUAL]) {
@@ -339,6 +349,7 @@ impl Parser {
         Ok(expr)
     }
 
+    ///处理加减
     fn term(&mut self) -> Result<Expr, LoxResult> {
         let mut expr = self.factor()?;
         while self.match_token(&[MINUS, PLUS]) {
@@ -353,6 +364,7 @@ impl Parser {
         Ok(expr)
     }
 
+    ///处理乘除
     fn factor(&mut self) -> Result<Expr, LoxResult> {
         let mut expr = self.unary()?;
         while self.match_token(&[SLASH, STAR]) {
@@ -367,6 +379,7 @@ impl Parser {
         Ok(expr)
     }
 
+    ///处理单目运算符
     fn unary(&mut self) -> Result<Expr, LoxResult> {
         if self.match_token(&[BANG, MINUS]) {
             let operator = self.previous();
@@ -379,6 +392,7 @@ impl Parser {
         self.call()
     }
 
+    ///处理函数调用
     fn call(&mut self) -> Result<Expr, LoxResult> {
         let mut expr = self.primary()?;
         loop {
@@ -391,6 +405,7 @@ impl Parser {
         Ok(expr)
     }
 
+    ///处理 ), ) 表示一段程序,参数的结束
     fn finish_call(&mut self, callee: Expr) -> Result<Expr, LoxResult> {
         let mut arguments = Vec::new();
         if !self.check(&RIGHT_PAREN) {
@@ -507,6 +522,7 @@ impl Parser {
         self.tokens[self.current - 1].clone()
     }
 
+    ///当出现错误时，会跳出当前语句，直到遇到下一个语句，以防止连环报错
     fn synchronize(&mut self) {
         self.advance();
         while !self.is_at_end() {

@@ -1,5 +1,6 @@
 use crate::{loxcallable::LoxCallable, token::Token, value::Value};
 
+///为[`Expr`]类型实现观察者模式
 pub trait Visitor<R> {
     fn visit_binary(&self, left: &Expr, operator: &Token, right: &Expr) -> R;
     fn visit_grouping(&self, expression: &Expr) -> R;
@@ -7,6 +8,7 @@ pub trait Visitor<R> {
     fn visit_unary(&self, operator: &Token, right: &Expr) -> R;
 }
 
+///定义了语言中的expression，expression类型如下
 #[derive(Debug, PartialEq, Clone)]
 pub enum Expr {
     Binary {
@@ -44,6 +46,7 @@ pub enum Expr {
 }
 
 impl Expr {
+    ///为[`Expr`]类型实现观察者模式
     pub fn accept<R>(&self, visitor: &impl Visitor<R>) -> R {
         match self {
             Expr::Binary {
