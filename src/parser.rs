@@ -522,7 +522,7 @@ impl Parser {
         self.tokens[self.current - 1].clone()
     }
 
-    ///当出现错误时，会跳出当前语句，直到遇到下一个语句，以防止连环报错
+    ///当parse出现错误时，会跳出当前语句，直到遇到下一个语句，以防止连环报错
     fn synchronize(&mut self) {
         self.advance();
         while !self.is_at_end() {

@@ -1,7 +1,7 @@
 ///定义了lox语言中的所有token
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TokenType {
-    // Single-character tokens.
+    /// Single-character tokens.
     LEFT_PAREN,
     RIGHT_PAREN,
     LEFT_BRACE,
@@ -14,7 +14,7 @@ pub enum TokenType {
     SLASH,
     STAR,
 
-    // One or two character tokens.
+    /// One or two character tokens.
     BANG,
     BANG_EQUAL,
     EQUAL,
@@ -24,12 +24,12 @@ pub enum TokenType {
     LESS,
     LESS_EQUAL,
 
-    // Literals.
+    /// Literals.
     IDENTIFIER,
     STRING,
     NUMBER,
 
-    // Keywords.
+    /// Keywords.
     AND,
     CLASS,
     ELSE,

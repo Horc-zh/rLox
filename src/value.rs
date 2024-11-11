@@ -31,6 +31,7 @@ impl PartialOrd for Value {
     // add code here
 }
 
+///如果value为[`Value::Boolean`] 的 true，则返回true，其他情况返回返回false
 impl Value {
     pub fn is_true(&self) -> bool {
         if let &Value::Boolean(b) = self {

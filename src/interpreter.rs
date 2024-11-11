@@ -1,3 +1,5 @@
+//! interpreter.rs是用于词法分析的文件，它将执行[`Vec<Stmt>`]和[`Vec<Expr>`]语句，并于作用域进行交互，这里是整个编译器的终点
+//!
 use crate::{
     environment::Environment, expr::Expr, loxcallable::LoxCallable, loxfunction::LoxFunction,
     loxresult::LoxResult, stmt::Stmt, token::Token, token_type::TokenType, value::Value, Lox,
@@ -11,6 +13,12 @@ pub struct Interpreter {
     environment: Environment,
 }
 
+impl Default for Interpreter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Interpreter {
     pub fn new() -> Self {
         let globals = Environment::new();
@@ -21,6 +29,7 @@ impl Interpreter {
         }
     }
 
+    ///解释从[`crate::parser`]得来的[`Vec<Stmt>`]
     pub fn interpret(&mut self, statements: Vec<Stmt>) {
         statements.into_iter().for_each(|stmt| {
             if let Err(e) = self.execute(stmt) {
@@ -30,6 +39,11 @@ impl Interpreter {
         })
     }
     //TODO: change the function signature otherwise there are bugs in whlie loop
+    //
+    ///interpret的核心，解释stmt语句
+    ///利用了rust的核心特性：模式匹配
+    ///根据[`Stmt`]的类型不同,进行不同的处理
+    ///[`Interpreter::evaluate`]同理
     fn execute(&mut self, stmt: Stmt) -> Result<Value, LoxResult> {
         match stmt {
             Stmt::Print { expression } => {
@@ -96,6 +110,9 @@ impl Interpreter {
         }
     }
 
+    ///进入一个作用域interpret要做的事情:
+    ///把父作用域(environment)中的变量移动到子作用域
+    ///然后执行子作用域中的语句
     pub fn execute_block(
         &mut self,
         statements: Vec<Stmt>,
@@ -114,6 +131,7 @@ impl Interpreter {
         Ok(Value::Nil)
     }
 
+    ///检查操作数是否符合要求
     fn check_number_operands(
         operator: &Token,
         left: &Value,
@@ -128,6 +146,8 @@ impl Interpreter {
         })
     }
 
+    ///执行语句的核心函数
+    ///这里根据语句的类型不同，进行不同的处理
     pub fn evaluate(&mut self, expr: Expr) -> Result<Value, LoxResult> {
         Ok(match expr {
             Expr::Binary {
